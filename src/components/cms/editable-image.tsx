@@ -5,6 +5,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Upload, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { db } from '../../lib/auth/firebase-config';
+import type { Firestore } from 'firebase/firestore';
 
 interface EditableImageProps {
   pageId: string;
@@ -68,7 +69,7 @@ export function EditableImage({
         // In production, you'd upload to R2/S3 and store the URL
         
         try {
-          const pageRef = doc(db, 'pages', pageId);
+          const pageRef = doc(db!, 'pages', pageId);
           await updateDoc(pageRef, {
             [`sections.${sectionKey}`]: {
               content: result, // This should be the uploaded URL in production

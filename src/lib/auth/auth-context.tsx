@@ -1,9 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, onAuthStateChanged, signOut as firebaseSignOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from './firebase-config';
+import {
+  User,
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  Auth,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
 
 type Role = 'admin' | 'pro' | 'free' | null;
 
@@ -18,35 +25,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-const actionCodeSettings = {
-  url: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : 'http://localhost:3000/auth/callback',
-  handleCodeInApp: true,
-};
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role>(null);
   const [loading, setLoading] = useState(true);
+  const [firebaseAuth, setFirebaseAuth] = useState<Auth | undefined>();
+  const [firebaseDb, setFirebaseDb] = useState<Firestore | undefined>();
 
-  const fetchUserRole = async (user: User): Promise<Role> => {
+  // Lazy-load Firebase on client only
+  useEffect(() => {
+    import('./firebase-config').then(({ auth, db }) => {
+      setFirebaseAuth(auth);
+      setFirebaseDb(db);
+    });
+  }, []);
+
+  const fetchUserRole = async (u: User, database: Firestore): Promise<Role> => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(database, 'users', u.uid));
       if (userDoc.exists()) {
         return userDoc.data().role as Role;
       }
-      
-      // Create new user document with default role
-      const newUserData = {
-        email: user.email,
-        role: 'free' as Role,
+      await setDoc(doc(database, 'users', u.uid), {
+        email: u.email,
+        role: 'free',
         createdAt: serverTimestamp(),
-      };
-      
-      await setDoc(doc(db, 'users', user.uid), newUserData);
+      });
       return 'free';
     } catch (error) {
       console.error('Error fetching user role:', error);
@@ -55,76 +59,62 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signIn = async (email: string): Promise<void> => {
-    try {
-      // Store email for completing sign-in
-      window.localStorage.setItem('emailForSignIn', email);
-      
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    } catch (error) {
-      console.error('Error sending sign-in link:', error);
-      throw error;
-    }
+    if (!firebaseAuth) throw new Error('Auth not initialized');
+    window.localStorage.setItem('emailForSignIn', email);
+    await sendSignInLinkToEmail(firebaseAuth, email, {
+      url: `${window.location.origin}/auth/callback`,
+      handleCodeInApp: true,
+    });
   };
 
   const completeSignIn = async (url: string): Promise<void> => {
-    try {
-      if (isSignInWithEmailLink(auth, url)) {
-        let email = window.localStorage.getItem('emailForSignIn');
-        
-        if (!email) {
-          // If email is not stored, prompt user to enter it
-          email = window.prompt('Please provide your email for confirmation');
-        }
-        
-        if (!email) {
-          throw new Error('Email is required to complete sign-in');
-        }
-        
-        await signInWithEmailLink(auth, email, url);
-        window.localStorage.removeItem('emailForSignIn');
+    if (!firebaseAuth) throw new Error('Auth not initialized');
+    if (isSignInWithEmailLink(firebaseAuth, url)) {
+      let email = window.localStorage.getItem('emailForSignIn');
+      if (!email) {
+        email = window.prompt('Please provide your email for confirmation');
       }
-    } catch (error) {
-      console.error('Error completing sign-in:', error);
-      throw error;
+      if (!email) throw new Error('Email is required to complete sign-in');
+      await signInWithEmailLink(firebaseAuth, email, url);
+      window.localStorage.removeItem('emailForSignIn');
     }
   };
 
   const signOut = async (): Promise<void> => {
-    try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
+    if (!firebaseAuth) return;
+    await firebaseSignOut(firebaseAuth);
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
-      if (user) {
-        const userRole = await fetchUserRole(user);
+    if (!firebaseAuth || !firebaseDb) return;
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (u) => {
+      setUser(u);
+      if (u) {
+        const userRole = await fetchUserRole(u, firebaseDb);
         setRole(userRole);
       } else {
         setRole(null);
       }
-      
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [firebaseAuth, firebaseDb]);
 
-  const value: AuthContextType = {
-    user,
-    role,
-    loading,
-    signIn,
-    signOut,
-    completeSignIn,
-  };
+  // If Firebase hasn't loaded yet, stop loading state once we know
+  useEffect(() => {
+    if (!firebaseAuth) {
+      const timer = setTimeout(() => setLoading(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [firebaseAuth]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, role, loading, signIn, signOut, completeSignIn }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextType {

@@ -5,6 +5,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Save, Eye, EyeOff, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { db } from '../../lib/auth/firebase-config';
+import type { Firestore } from 'firebase/firestore';
 
 interface Frontmatter {
   title: string;
@@ -84,7 +85,7 @@ export function MDXEditor({
       const currentPostId = postId || slug;
       
       // Save to Firestore (metadata)
-      const blogRef = doc(db, 'blog', currentPostId);
+      const blogRef = doc(db!, 'blog', currentPostId);
       await setDoc(blogRef, {
         title: frontmatter.title,
         description: frontmatter.description,

@@ -5,6 +5,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Edit2 } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { db } from '../../lib/auth/firebase-config';
+import type { Firestore } from 'firebase/firestore';
 
 interface EditableTextProps {
   pageId: string;
@@ -74,7 +75,7 @@ export function EditableText({
 
     try {
       // Update Firestore
-      const pageRef = doc(db, 'pages', pageId);
+      const pageRef = doc(db!, 'pages', pageId);
       await updateDoc(pageRef, {
         [`sections.${sectionKey}`]: {
           content: newContent,

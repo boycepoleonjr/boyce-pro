@@ -22,26 +22,24 @@ const configs: Record<string, FirebaseConfig> = {
 };
 
 // Site ID should be set in your app's env vars
-const SITE_ID = process.env.NEXT_PUBLIC_SITE_ID as 'boyce-pro' | 'agentbolt';
+const SITE_ID = (process.env.NEXT_PUBLIC_SITE_ID || 'boyce-pro') as 'boyce-pro' | 'agentbolt';
 
-if (!SITE_ID || !configs[SITE_ID]) {
-  throw new Error(`Invalid NEXT_PUBLIC_SITE_ID: ${SITE_ID}. Must be 'boyce-pro' or 'agentbolt'`);
+const config = configs[SITE_ID] || configs['boyce-pro'];
+
+// Only initialize Firebase on the client (avoid SSG/build-time errors)
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
+
+if (typeof window !== 'undefined') {
+  if (getApps().length === 0) {
+    app = initializeApp(config);
+  } else {
+    app = getApps()[0];
+  }
+  auth = getAuth(app);
+  db = getFirestore(app);
 }
 
-const config = configs[SITE_ID];
-
-// Initialize Firebase
-let app: FirebaseApp;
-if (getApps().length === 0) {
-  app = initializeApp(config);
-} else {
-  app = getApps()[0];
-}
-
-// Initialize services
-export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
+export { app, auth, db };
 export const firebaseConfig = config;
-
-// Export for easier access
-export { app };
