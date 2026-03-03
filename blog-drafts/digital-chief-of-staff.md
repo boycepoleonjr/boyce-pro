@@ -18,17 +18,15 @@ Two weeks ago I stopped. I configured an AI agent called Gina to do all of that 
 
 Every weekday at 7:30am, I get a message like this:
 
-> **Morning brief — March 2**
->
-> 🚨 Cursor payment failed ($20, 3am). Fix payment method.
+> **Morning brief — Tuesday**
 >
 > Calendar: Two focus blocks today (10am-12pm, 4-6pm). Otherwise open.
 >
-> Email: Nothing urgent. Promo stuff from Lyft and LinkedIn.
+> Email: Nothing urgent. Marketing stuff from LinkedIn and a $6 BurgerFi reward.
 >
-> Luminon email down — OAuth token expired, needs re-auth.
+> Luminon: OAuth token expired on admin@ account — needs re-auth when you get a chance.
 
-That's a real briefing from this morning. Not a demo. I didn't open Gmail, didn't check my calendar app, didn't scroll through notifications. It was just there when I picked up my phone.
+That's a real briefing. Not a demo. I didn't open Gmail, didn't check my calendar app, didn't scroll through notifications. It was just there when I picked up my phone.
 
 At 9pm, I get an evening wrap-up: what happened today, what's tomorrow, anything I still need to deal with. The loop closes without me thinking about it.
 
